@@ -10,7 +10,7 @@
 
 .segment "ZEROPAGE"
 ; Zero page variables
-nmi_count:    .res 1      ; Counts NMIs received
+nmi_count:    .res 2      ; Counts NMIs received (16-bit: low, high)
 nmi_ready:    .res 1      ; Flag to indicate NMI has occurred
 temp:         .res 1      ; Temporary variable
 frame_count:  .res 1      ; Counts frames for timing
@@ -58,7 +58,8 @@ vblankwait2:
 
     ; Initialize variables
     LDA #0
-    STA nmi_count
+    STA nmi_count       ; Clear low byte
+    STA nmi_count+1     ; Clear high byte
     STA nmi_ready
     STA frame_count
 
@@ -156,10 +157,13 @@ nmi:
     PHA
     TYA
     PHA
-    
-    ; Increment NMI counter
-    INC nmi_count
-    
+
+    ; Increment 16-bit NMI counter
+    INC nmi_count       ; Increment low byte
+    BNE nmi_no_carry    ; If not zero, skip high byte
+    INC nmi_count+1     ; Increment high byte
+nmi_no_carry:
+
     ; Set NMI ready flag
     LDA #1
     STA nmi_ready
@@ -181,15 +185,15 @@ nmi:
 ; Update counter display subroutine
 update_counter_display:
     LDA $2002             ; Reset PPU address latch
-    
+
     ; Position for counter display
     LDA #$22
     STA $2006
     LDA #$09
     STA $2006
-    
-    ; Display NMI count in hexadecimal
-    LDA nmi_count
+
+    ; Display high byte (2 digits)
+    LDA nmi_count+1       ; Get high byte
     LSR A
     LSR A
     LSR A
@@ -197,13 +201,29 @@ update_counter_display:
     TAX
     LDA hex_digits, X
     STA $2007
-    
+
+    LDA nmi_count+1
+    AND #$0F
+    TAX
+    LDA hex_digits, X
+    STA $2007
+
+    ; Display low byte (2 digits)
+    LDA nmi_count         ; Get low byte
+    LSR A
+    LSR A
+    LSR A
+    LSR A
+    TAX
+    LDA hex_digits, X
+    STA $2007
+
     LDA nmi_count
     AND #$0F
     TAX
     LDA hex_digits, X
     STA $2007
-    
+
     RTS
 
 ; IRQ handler (unused)
