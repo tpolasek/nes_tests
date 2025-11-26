@@ -1,7 +1,6 @@
 ; NMI Test Program for NES
 ; Tests the PPU's NMI interrupt functionality
 
-
 .segment "HEADER"
     .byte "NES", $1A      ; iNES header identifier
     .byte 2               ; 2x 16KB PRG ROM
@@ -95,7 +94,21 @@ clear_nametable:
     BNE clear_nametable
     INY
     CPY #4
-    BNE clear_nametable
+    BCC clear_nametable
+
+    ; Clear attribute table with 0 (all palette 0 = red text)
+    LDA $2002             ; Reset PPU address latch
+    LDA #$23
+    STA $2006             ; Attribute table address high
+    LDA #$C0
+    STA $2006             ; Attribute table address low ($23C0)
+
+    LDX #64               ; 64 bytes in attribute table
+    LDA #0
+clear_attributes:
+    STA $2007
+    DEX
+    BNE clear_attributes
 
     ; Write test message to nametable
     LDA $2002             ; Reset PPU address latch
@@ -112,6 +125,26 @@ write_message:
     INX
     JMP write_message
 message_done:
+
+    ; Set attribute table for message area (row 14, cols 9-24) to use palette 2 (yellow)
+    ; Message is at row 14, which maps to attribute row 3 (14/4=3)
+    ; Attribute table starts at $23C0, row 3 starts at offset 3*8 = 24 = $18
+    LDA $2002             ; Reset PPU address latch
+    LDA #$23
+    STA $2006
+    LDA #$D8              ; $23C0 + $18 = $23D8 (attribute byte for cols 8-11)
+    STA $2006
+
+    ; Write palette 2 (%10) to bottom half (bits 4-7) for columns 8-27
+    ; Byte controls 4x4 tiles: bits 0-1=top-left, 2-3=top-right, 4-5=bottom-left, 6-7=bottom-right
+    ; Row 14 is in bottom half, so we set bits 4-5 and 6-7 to %10 (palette 2)
+    LDA #$A8              ; %10101000 = palette 2 for both bottom quadrants
+    STA $2007             ; Attribute byte 26 (cols 8-11)
+    STA $2007             ; Attribute byte 27 (cols 12-15)
+    STA $2007             ; Attribute byte 28 (cols 16-19)
+    STA $2007             ; Attribute byte 29 (cols 20-23)
+    LDA #$28              ; %00101000 = palette 2 for bottom-left only (cols 24-25)
+    STA $2007             ; Attribute byte 30 (cols 24-27)
 
     ; Enable NMI and set background pattern table
     LDA #%10000000        ; Enable NMI
