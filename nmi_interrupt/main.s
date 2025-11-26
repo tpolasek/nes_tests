@@ -78,16 +78,16 @@ load_palette:
     CPX #32
     BNE load_palette
 
-    ; Clear nametable
+    ; Clear nametable with spaces (tile 32)
     LDA $2002             ; Reset PPU address latch
     LDA #$20
     STA $2006             ; Nametable 0 address high
     LDA #$00
     STA $2006             ; Nametable 0 address low
-    
+
     LDX #0
     LDY #0
-    LDA #0
+    LDA #32               ; Use space character (tile 32)
 clear_nametable:
     STA $2007
     INX
@@ -212,7 +212,7 @@ irq:
 
 ; Data section
 palette_data:
-    .byte $0F, $00, $10, $20   ; Background palette 0
+    .byte $21, $30, $27, $16   ; Background palette 0 - blue bg, white text
     .byte $0F, $06, $16, $26   ; Background palette 1
     .byte $0F, $08, $18, $28   ; Background palette 2
     .byte $0F, $0A, $1A, $2A   ; Background palette 3
