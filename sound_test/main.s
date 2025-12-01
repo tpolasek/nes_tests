@@ -286,7 +286,7 @@ init_apu:
     STA $4001
     LDA #$17              ; Timer low byte (279 & $FF)
     STA $4002
-    LDA #$01              ; Timer high 3 bits ((279 >> 8) & $07)
+    LDA #$F9              ; Timer high 3 bits + length counter load 31
     STA $4003
 
     ; Configure Square Wave 2 (400Hz, 50% duty cycle, volume 15)
@@ -296,8 +296,12 @@ init_apu:
     STA $4005
     LDA #$17              ; Timer low byte (279 & $FF)
     STA $4006
-    LDA #$01              ; Timer high 3 bits ((279 >> 8) & $07)
+    LDA #$F9              ; Timer high 3 bits + length counter load 31
     STA $4007
+
+    ; Enable both channels so they're ready
+    LDA #%00000011
+    STA $4015
 
     RTS
 
