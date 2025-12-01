@@ -275,12 +275,12 @@ init_apu:
     LDA #$00
     STA $4015
 
-    ; Initialize frame counter (4-step mode, no IRQ)
-    LDA #$40
+    ; Initialize frame counter (4-step mode, no IRQ, reset)
+    LDA #$C0
     STA $4017
 
     ; Configure Square Wave 1 (400Hz, 50% duty cycle, volume 15)
-    LDA #%00111111        ; 50% duty, constant volume, volume = 15
+    LDA #%10111111        ; 50% duty, constant volume, volume = 15
     STA $4000
     LDA #$00              ; No sweep
     STA $4001
@@ -290,7 +290,7 @@ init_apu:
     STA $4003
 
     ; Configure Square Wave 2 (400Hz, 50% duty cycle, volume 15)
-    LDA #%00111111        ; 50% duty, constant volume, volume = 15
+    LDA #%10111111        ; 50% duty, constant volume, volume = 15
     STA $4004
     LDA #$00              ; No sweep
     STA $4005
