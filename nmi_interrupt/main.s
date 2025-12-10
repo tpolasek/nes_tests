@@ -14,7 +14,6 @@
 nmi_count:    .res 2      ; Counts NMIs received (16-bit: low, high)
 nmi_ready:    .res 1      ; Flag to indicate NMI has occurred
 temp:         .res 1      ; Temporary variable
-frame_count:  .res 1      ; Counts frames for timing
 
 .segment "OAM"
 oam_data:     .res 256    ; OAM buffer for sprites
@@ -62,7 +61,6 @@ vblankwait2:
     STA nmi_count       ; Clear low byte
     STA nmi_count+1     ; Clear high byte
     STA nmi_ready
-    STA frame_count
 
     ; Set up palette
     LDA PPU_STATUS             ; Reset PPU address latch
@@ -183,17 +181,6 @@ nmi:
     INC nmi_count+1     ; Increment high byte
 nmi_no_carry:
 
-    ; Update frame counter
-    INC frame_count
-
-    ; Every 60 frames (approx 1 second), update NMI counter display
-    LDA frame_count
-    CMP #60
-    BCC skip_update
-
-    ; Reset frame counter
-    LDA #0
-    STA frame_count
 
     ; Update NMI counter display (safe during VBlank)
     JSR update_counter_display
