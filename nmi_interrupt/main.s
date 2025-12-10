@@ -1,6 +1,8 @@
 ; NMI Test Program for NES
 ; Tests the PPU's NMI interrupt functionality
 
+.include "constants.inc"
+
 .segment "HEADER"
     .byte "NES", $1A      ; iNES header identifier
     .byte 2               ; 2x 16KB PRG ROM
@@ -23,17 +25,17 @@ reset:
     SEI                   ; Disable interrupts
     CLD                   ; Clear decimal mode
     LDX #$40
-    STX $4017             ; Disable APU frame IRQ
+    STX APU_FRAME_COUNTER             ; Disable APU frame IRQ
     LDX #$FF
     TXS                   ; Initialize stack pointer
     INX                   ; X = 0
-    STX $2000             ; Disable PPU rendering
-    STX $2001             ; Disable PPU rendering
-    STX $4010             ; Disable DMC IRQs
+    STX PPU_CTRL             ; Disable PPU rendering
+    STX PPU_MASK             ; Disable PPU rendering
+    STX DMC_IRQ             ; Disable DMC IRQs
 
     ; Wait for first vblank
 vblankwait1:
-    BIT $2002
+    BIT PPU_STATUS
     BPL vblankwait1
 
     ; Clear RAM
@@ -52,7 +54,7 @@ clear_ram:
 
     ; Wait for second vblank
 vblankwait2:
-    BIT $2002
+    BIT PPU_STATUS
     BPL vblankwait2
 
     ; Initialize variables
@@ -63,33 +65,33 @@ vblankwait2:
     STA frame_count
 
     ; Set up palette
-    LDA $2002             ; Reset PPU address latch
+    LDA PPU_STATUS             ; Reset PPU address latch
     LDA #$3F
-    STA $2006             ; PPU address high byte
+    STA PPU_ADDR             ; PPU address high byte
     LDA #$00
-    STA $2006             ; PPU address low byte
+    STA PPU_ADDR             ; PPU address low byte
     
     ; Load palette data
     LDX #0
 load_palette:
     LDA palette_data, X
-    STA $2007
+    STA PPU_DATA
     INX
     CPX #32
     BNE load_palette
 
     ; Clear nametable with spaces (tile 32)
-    LDA $2002             ; Reset PPU address latch
+    LDA PPU_STATUS             ; Reset PPU address latch
     LDA #$20
-    STA $2006             ; Nametable 0 address high
+    STA PPU_ADDR             ; Nametable 0 address high
     LDA #$00
-    STA $2006             ; Nametable 0 address low
+    STA PPU_ADDR             ; Nametable 0 address low
 
     LDX #0
     LDY #0
     LDA #32               ; Use space character (tile 32)
 clear_nametable:
-    STA $2007
+    STA PPU_DATA
     INX
     BNE clear_nametable
     INY
@@ -97,31 +99,31 @@ clear_nametable:
     BCC clear_nametable
 
     ; Clear attribute table with 0 (all palette 0 = red text)
-    LDA $2002             ; Reset PPU address latch
+    LDA PPU_STATUS             ; Reset PPU address latch
     LDA #$23
-    STA $2006             ; Attribute table address high
+    STA PPU_ADDR             ; Attribute table address high
     LDA #$C0
-    STA $2006             ; Attribute table address low ($23C0)
+    STA PPU_ADDR             ; Attribute table address low ($23C0)
 
     LDX #64               ; 64 bytes in attribute table
     LDA #0
 clear_attributes:
-    STA $2007
+    STA PPU_DATA
     DEX
     BNE clear_attributes
 
     ; Write test message to nametable
-    LDA $2002             ; Reset PPU address latch
+    LDA PPU_STATUS             ; Reset PPU address latch
     LDA #$21
-    STA $2006             ; Nametable address high
+    STA PPU_ADDR             ; Nametable address high
     LDA #$C9
-    STA $2006             ; Nametable address low
+    STA PPU_ADDR             ; Nametable address low
     
     LDX #0
 write_message:
     LDA message, X
     BEQ message_done
-    STA $2007
+    STA PPU_DATA
     INX
     JMP write_message
 message_done:
@@ -129,29 +131,29 @@ message_done:
     ; Set attribute table for message area (row 14, cols 9-24) to use palette 2 (yellow)
     ; Message is at row 14, which maps to attribute row 3 (14/4=3)
     ; Attribute table starts at $23C0, row 3 starts at offset 3*8 = 24 = $18
-    LDA $2002             ; Reset PPU address latch
+    LDA PPU_STATUS             ; Reset PPU address latch
     LDA #$23
-    STA $2006
+    STA PPU_ADDR
     LDA #$DA              ; $23C0 + $1A = $23DA (attribute byte for cols 8-11)
-    STA $2006
+    STA PPU_ADDR
 
     ; Write palette 2 (%10) to bottom half (bits 4-7) for columns 8-27
     ; Byte controls 4x4 tiles: bits 0-1=top-left, 2-3=top-right, 4-5=bottom-left, 6-7=bottom-right
     ; Row 14 is in bottom half, so we set bits 4-5 and 6-7 to %10 (palette 2)
     LDA #$A8              ; %10101000 = palette 2 for both bottom quadrants
-    STA $2007             ; $23DA (cols 8-11)
-    STA $2007             ; $23DB (cols 12-15)
-    STA $2007             ; $23DC (cols 16-19)
-    STA $2007             ; $23DD (cols 20-23)
-    STA $2007             ; $23DE (cols 24-27)
+    STA PPU_DATA             ; $23DA (cols 8-11)
+    STA PPU_DATA             ; $23DB (cols 12-15)
+    STA PPU_DATA             ; $23DC (cols 16-19)
+    STA PPU_DATA             ; $23DD (cols 20-23)
+    STA PPU_DATA             ; $23DE (cols 24-27)
 
     ; Enable NMI and set background pattern table
     LDA #%10000000        ; Enable NMI
-    STA $2000
+    STA PPU_CTRL
     
     ; Enable background rendering
     LDA #%00001110        ; Enable background, disable sprites
-    STA $2001
+    STA PPU_MASK
 
     ; Main program loop
 main_loop:
@@ -202,8 +204,8 @@ nmi_no_carry:
     
     ; Reset scroll
     LDA #0
-    STA $2005
-    STA $2005
+    STA PPU_SCROLL
+    STA PPU_SCROLL
     
     ; Restore registers
     PLA
@@ -216,13 +218,13 @@ nmi_no_carry:
 
 ; Update counter display subroutine
 update_counter_display:
-    LDA $2002             ; Reset PPU address latch
+    LDA PPU_STATUS             ; Reset PPU address latch
 
     ; Position for counter display
     LDA #$22
-    STA $2006
+    STA PPU_ADDR
     LDA #$09
-    STA $2006
+    STA PPU_ADDR
 
     ; Display high byte (2 digits)
     LDA nmi_count+1       ; Get high byte
@@ -232,13 +234,13 @@ update_counter_display:
     LSR A
     TAX
     LDA hex_digits, X
-    STA $2007
+    STA PPU_DATA
 
     LDA nmi_count+1
     AND #$0F
     TAX
     LDA hex_digits, X
-    STA $2007
+    STA PPU_DATA
 
     ; Display low byte (2 digits)
     LDA nmi_count         ; Get low byte
@@ -248,13 +250,13 @@ update_counter_display:
     LSR A
     TAX
     LDA hex_digits, X
-    STA $2007
+    STA PPU_DATA
 
     LDA nmi_count
     AND #$0F
     TAX
     LDA hex_digits, X
-    STA $2007
+    STA PPU_DATA
 
     RTS
 
