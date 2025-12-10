@@ -160,27 +160,12 @@ main_loop:
     ; Wait for NMI
     LDA nmi_ready
     BEQ main_loop
-    
+
     ; Clear NMI ready flag
     LDA #0
     STA nmi_ready
-    
-    ; Update frame counter
-    INC frame_count
-    
-    ; Every 60 frames (approx 1 second), update NMI counter display
-    LDA frame_count
-    CMP #60
-    BCC skip_update
-    
-    ; Reset frame counter
-    LDA #0
-    STA frame_count
-    
-    ; Update NMI counter display
-    JSR update_counter_display
-    
-skip_update:
+
+    ; Continue main loop
     JMP main_loop
 
 ; NMI interrupt handler
@@ -198,22 +183,38 @@ nmi:
     INC nmi_count+1     ; Increment high byte
 nmi_no_carry:
 
+    ; Update frame counter
+    INC frame_count
+
+    ; Every 60 frames (approx 1 second), update NMI counter display
+    LDA frame_count
+    CMP #60
+    BCC skip_update
+
+    ; Reset frame counter
+    LDA #0
+    STA frame_count
+
+    ; Update NMI counter display (safe during VBlank)
+    JSR update_counter_display
+
+skip_update:
     ; Set NMI ready flag
     LDA #1
     STA nmi_ready
-    
+
     ; Reset scroll
     LDA #0
     STA PPU_SCROLL
     STA PPU_SCROLL
-    
+
     ; Restore registers
     PLA
     TAY
     PLA
     TAX
     PLA
-    
+
     RTI
 
 ; Update counter display subroutine
